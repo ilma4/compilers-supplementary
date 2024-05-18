@@ -637,20 +637,18 @@ fun compile (env, code) {
 }
 
 fun compileSexpCall(env, s, numElems){
-  case addString(env, s) of [env, name] ->
-    case liveRegisters(env, numElems) of liveRegs ->
-      case popN(env, numElems) of [args, env] ->
-        case allocate(env) of [res, env] ->
-          case  listBuffer(map(fun(reg){Push(reg)}, reverse(liveRegs))) 
-                <+  Push(M("$" ++ name))
-                <+> listBuffer(map(fun(arg){Push(arg)}, args)) 
-                <+  Push(L(makeBox(numElems)))
-                <+  Call("Barray") <+> move(eax, res) 
-                <+  Binop("+", L((numElems + 2) * wordSize), esp) 
-                <+> listBuffer(map(fun(r){ Pop(r) }, liveRegs)) 
-            of code ->
-                [env, code]
-          esac
+  case liveRegisters(env, numElems) of liveRegs ->
+    case popN(env, numElems) of [args, env] ->
+      case allocate(env) of [res, env] ->
+        case  listBuffer(map(fun(reg){Push(reg)}, reverse(liveRegs))) 
+              <+  Push(L(tagHash(s)))
+              <+> listBuffer(map(fun(arg){Push(arg)}, args)) 
+              <+  Push(L(makeBox(numElems)))
+              <+  Call("Barray") <+> move(eax, res) 
+              <+  Binop("+", L((numElems + 2) * wordSize), esp) 
+              <+> listBuffer(map(fun(r){ Pop(r) }, liveRegs)) 
+          of code ->
+              [env, code]
         esac
       esac
     esac
@@ -749,9 +747,9 @@ fun compileOr(b, a){
       singletonBuffer(Binop("^", eax, eax)) <+ Binop("!!", b, a) <+ Set("ne", "%al") 
     else
       singletonBuffer(Mov(a, eax)) <+ Binop("!!",  b, eax) <+ Set("ne", "%al") <+ Binop("&&", L(1), eax) 
-    fi <+ 
-  Mov(eax, a) <+>
-  toFixedNum(a)
+    fi <+>
+  toFixedNum(eax) <+
+  Mov(eax, a) 
 }
 
 fun compileAnd(b, a){
